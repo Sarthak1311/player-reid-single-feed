@@ -1,13 +1,13 @@
 import torch
-import cv2
 import torchvision.transforms as T
 from torchvision.models import resnet50
+import cv2
 
 class FeatureExtractor:
     def __init__(self):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.model = resnet50(pretrained = True)
-        self.model = torch.nn.Sequential(*list(self.model.children())[:-1])
+        self.model = resnet50(pretrained=True)
+        self.model = torch.nn.Sequential(*list(self.model.children())[:-1])  # remove final FC
         self.model.to(self.device)
         self.model.eval()
 
@@ -19,12 +19,12 @@ class FeatureExtractor:
                         std=[0.229, 0.224, 0.225])
         ])
 
+    def extract(self, image_bgr):
+        # OpenCV uses BGR, convert to RGB
+        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+        tensor = self.transform(image_rgb).unsqueeze(0).to(self.device)
 
-        def extract(self,image):
-            image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-            tensor = self.transform(image).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            features = self.model(tensor).squeeze()
 
-            with torch.no_grad():
-                features = self.model(tensor).squeeze()
-            
-            return features.cpu()/features.norm()
+        return features.cpu() / features.norm()
